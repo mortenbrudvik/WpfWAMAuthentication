@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Interop;
 using Microsoft.Graph;
 using Microsoft.Identity.Client;
+using Prompt = Microsoft.Identity.Client.Prompt;
 
 namespace WpfWAM.UI;
 
@@ -12,6 +13,7 @@ public partial class MainWindow
 {
     private readonly IPublicClientApplication _client;
     private readonly string[] _scopes;
+    private readonly GraphServiceClient _graphApi;
 
     public MainWindow(IPublicClientApplication client, string[] scopes)
     {
@@ -19,6 +21,12 @@ public partial class MainWindow
         _scopes = scopes;
         InitializeComponent();
         SignoutButton.Visibility = Visibility.Collapsed;
+        
+        _graphApi = new GraphServiceClient(new DelegateAuthenticationProvider(async requestMessage =>
+        {
+            var authResult = await _client.AcquireTokenSilent(_scopes, _client.GetAccountsAsync().Result.FirstOrDefault()).ExecuteAsync();
+            requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("bearer", authResult.AccessToken);
+        }));
     }
 
     protected override async void OnContentRendered(EventArgs e)
@@ -53,12 +61,24 @@ public partial class MainWindow
         if (authResult != null)
         {
             SignoutButton.Visibility = Visibility.Visible;
+            
+            // Using Microsoft.Identity.Client to get the user's profile
             var api = new GraphApi(authResult.AccessToken);
             var me = await api.GetMe();
+            
+            // Parse the permissions from the token
             var permissions = api.GetPermissions();
             
-            System.Diagnostics.Debug.WriteLine($"Token content: {Environment.NewLine}{me}");
+            System.Diagnostics.Debug.WriteLine($"Graph api: me: {Environment.NewLine}{me}");
             System.Diagnostics.Debug.WriteLine($"Permissions: {Environment.NewLine}{string.Join(',', permissions)}");
+            
+            // Using Microsoft.Graph to get the user's profile
+            var user = await _graphApi.Me
+                .Request()
+                .Select(u => new {u.DisplayName, u.Mail, u.UserPrincipalName})
+                .GetAsync();
+            
+            System.Diagnostics.Debug.WriteLine($"Graph api: user: {Environment.NewLine}{user.DisplayName} {user.Mail} {user.UserPrincipalName}");
         }
     }
     
