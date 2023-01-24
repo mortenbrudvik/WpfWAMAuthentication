@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
+using Microsoft.Graph;
 using Microsoft.Identity.Client;
 
 namespace WpfWAM.UI;
@@ -24,12 +25,12 @@ public partial class MainWindow
     {
         base.OnContentRendered(e);
             
-        await Signin();
+        await SignIn();
     }
 
-    private async Task Signin()
+    private async Task SignIn()
     {
-        AuthenticationResult? authResult = null;
+        AuthenticationResult? authResult;
         var accounts = await _client.GetAccountsAsync();
         var firstAccount = accounts.FirstOrDefault();
 
@@ -40,18 +41,8 @@ public partial class MainWindow
         catch (MsalUiRequiredException ex)
         {
             System.Diagnostics.Debug.WriteLine($"MsalUiRequiredException: {ex.Message}");
-            try
-            {
-                authResult = await _client.AcquireTokenInteractive(_scopes)
-                    .WithAccount(firstAccount)
-                    .WithParentActivityOrWindow(new WindowInteropHelper(this).Handle) // optional, used to center the browser on the window
-                    .WithPrompt(Prompt.NoPrompt)
-                    .ExecuteAsync();
-            }
-            catch (MsalException msalEx)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error Acquiring Token:{Environment.NewLine}{msalEx}");
-            }
+            
+            authResult = await AcquireTokenInteractive();
         }
         catch (Exception ex)
         {
@@ -69,6 +60,36 @@ public partial class MainWindow
             System.Diagnostics.Debug.WriteLine($"Token content: {Environment.NewLine}{me}");
             System.Diagnostics.Debug.WriteLine($"Permissions: {Environment.NewLine}{string.Join(',', permissions)}");
         }
+    }
+    
+    private async Task<AuthenticationResult?> AcquireTokenInteractive()
+    {
+        try
+        {
+            var accounts = await _client.GetAccountsAsync();
+ 
+            var result = await _client.AcquireTokenInteractive(_scopes)
+                .WithAccount(accounts.FirstOrDefault())
+                .WithParentActivityOrWindow(new WindowInteropHelper(this).Handle) 
+                .WithPrompt(Prompt.NoPrompt)
+                .ExecuteAsync();
+ 
+            return result;
+        }
+        catch (MsalException msalEx)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error Acquiring Token:{Environment.NewLine}{msalEx}");
+        }
+
+        return null;
+    }
+ 
+    public async Task<AuthenticationResult> AcquireTokenSilent()
+    {
+        var accounts = await _client.GetAccountsAsync();
+        var result = await _client.AcquireTokenSilent(_scopes, accounts.FirstOrDefault())
+            .ExecuteAsync();
+        return result;
     }
 
     private async Task<bool>SignOut()

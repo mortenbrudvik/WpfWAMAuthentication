@@ -13,13 +13,9 @@ public static class ClientApp
     //   - for any Work or School accounts, use organizations
     //   - for any Work or School accounts, or Microsoft personal account, use common
     //   - for Microsoft Personal account, use consumers
-
-    // Note: Tenant is important for the quickstart.
     private static string Instance = "https://login.microsoftonline.com/";
 
-    public static IPublicClientApplication Create(string clientId, string tenantId, bool useWam = true) => CreateApplication(clientId, tenantId, useWam);
-
-    private static IPublicClientApplication CreateApplication(string clientId, string tenantId,  bool useWam = true)
+    public static IPublicClientApplication Create(string clientId, string tenantId, bool useWam = true)
     {
         var builder = PublicClientApplicationBuilder.Create(clientId)
             .WithAuthority($"{Instance}{tenantId}")

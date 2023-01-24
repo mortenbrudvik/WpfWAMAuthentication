@@ -7,14 +7,15 @@ public partial class App
     private readonly string[] _scopes = { "user.read" };
 
     private const string ClientId = "0222de5a-9d82-4c97-bf62-62ffc6465aca";
-    private const string TenantId = "common"; 
+    private const string TenantId = "common";
+    private const bool UseWam = true;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
             
-        var clientApp = ClientApp.Create(ClientId, TenantId);
-            
+        var clientApp = ClientApp.Create(ClientId, TenantId, UseWam);
+        
         MainWindow = new MainWindow(clientApp, _scopes);
         MainWindow.Show();
     }
