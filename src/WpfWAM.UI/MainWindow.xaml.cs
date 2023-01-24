@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Interop;
 using Microsoft.Identity.Client;
 
 namespace WpfWAM.UI;
 
-public partial class MainWindow
+public partial class MainWindow 
 {
     private readonly IPublicClientApplication _client;
     private readonly string[] _scopes;
@@ -16,6 +17,7 @@ public partial class MainWindow
         _client = client;
         _scopes = scopes;
         InitializeComponent();
+        SignoutButton.Visibility = Visibility.Collapsed;
     }
 
     protected override async void OnContentRendered(EventArgs e)
@@ -59,14 +61,17 @@ public partial class MainWindow
             
         if (authResult != null)
         {
+            SignoutButton.Visibility = Visibility.Visible;
             var api = new GraphApi(authResult.AccessToken);
             var me = await api.GetMe();
+            var permissions = api.GetPermissions();
             
             System.Diagnostics.Debug.WriteLine($"Token content: {Environment.NewLine}{me}");
+            System.Diagnostics.Debug.WriteLine($"Permissions: {Environment.NewLine}{string.Join(',', permissions)}");
         }
     }
 
-    private async Task<bool> SignOut()
+    private async Task<bool>SignOut()
     {
         try
         {
@@ -91,5 +96,11 @@ public partial class MainWindow
         }
         return false;
     }
-    
+
+    private async void ButtonBase_OnClick(object sender, RoutedEventArgs e)
+    {
+        var signedOut = await SignOut();
+        if(signedOut)
+            SignoutButton.Visibility = Visibility.Collapsed;
+    }
 }

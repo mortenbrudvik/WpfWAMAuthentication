@@ -1,4 +1,6 @@
 ﻿using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -31,5 +33,16 @@ public class GraphApi
         {
             return ex.ToString();
         }
+    }
+
+    public string[] GetPermissions()
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var jsonToken = handler.ReadJwtToken(_accessToken);
+        var permissions = jsonToken.Claims
+            .FirstOrDefault(c => c.Type == "scp")?.Value
+            .Split(' ');
+
+        return permissions ?? Array.Empty<string>();
     }
 }
