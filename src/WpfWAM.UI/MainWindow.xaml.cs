@@ -5,11 +5,12 @@ using System.Windows;
 using System.Windows.Interop;
 using Microsoft.Graph;
 using Microsoft.Identity.Client;
+
 using Prompt = Microsoft.Identity.Client.Prompt;
 
 namespace WpfWAM.UI;
 
-public partial class MainWindow 
+public partial class MainWindow
 {
     private readonly IPublicClientApplication _client;
     private readonly string[] _scopes;
@@ -21,18 +22,12 @@ public partial class MainWindow
         _scopes = scopes;
         InitializeComponent();
         SignoutButton.Visibility = Visibility.Collapsed;
-        
-        _graphApi = new GraphServiceClient(new DelegateAuthenticationProvider(async requestMessage =>
-        {
-            var authResult = await _client.AcquireTokenSilent(_scopes, _client.GetAccountsAsync().Result.FirstOrDefault()).ExecuteAsync();
-            requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("bearer", authResult.AccessToken);
-        }));
     }
 
     protected override async void OnContentRendered(EventArgs e)
     {
         base.OnContentRendered(e);
-            
+
         await SignIn();
     }
 
@@ -49,51 +44,43 @@ public partial class MainWindow
         catch (MsalUiRequiredException ex)
         {
             System.Diagnostics.Debug.WriteLine($"MsalUiRequiredException: {ex.Message}");
-            
+
             authResult = await AcquireTokenInteractive();
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error Acquiring Token Silently:{Environment.NewLine}{ex}");
-            return; 
+            return;
         }
-            
+
         if (authResult != null)
         {
             SignoutButton.Visibility = Visibility.Visible;
-            
+
             // Using Microsoft.Identity.Client to get the user's profile
             var api = new GraphApi(authResult.AccessToken);
             var me = await api.GetMe();
-            
+
             // Parse the permissions from the token
             var permissions = api.GetPermissions();
-            
+
             System.Diagnostics.Debug.WriteLine($"Graph api: me: {Environment.NewLine}{me}");
             System.Diagnostics.Debug.WriteLine($"Permissions: {Environment.NewLine}{string.Join(',', permissions)}");
-            
-            // Using Microsoft.Graph to get the user's profile
-            var user = await _graphApi.Me
-                .Request()
-                .Select(u => new {u.DisplayName, u.Mail, u.UserPrincipalName})
-                .GetAsync();
-            
-            System.Diagnostics.Debug.WriteLine($"Graph api: user: {Environment.NewLine}{user.DisplayName} {user.Mail} {user.UserPrincipalName}");
-        }
+         }
     }
-    
+
     private async Task<AuthenticationResult?> AcquireTokenInteractive()
     {
         try
         {
             var accounts = await _client.GetAccountsAsync();
- 
+
             var result = await _client.AcquireTokenInteractive(_scopes)
                 .WithAccount(accounts.FirstOrDefault())
-                .WithParentActivityOrWindow(new WindowInteropHelper(this).Handle) 
+                .WithParentActivityOrWindow(new WindowInteropHelper(this).Handle)
                 .WithPrompt(Prompt.NoPrompt)
                 .ExecuteAsync();
- 
+
             return result;
         }
         catch (MsalException msalEx)
@@ -103,7 +90,7 @@ public partial class MainWindow
 
         return null;
     }
- 
+
     public async Task<AuthenticationResult> AcquireTokenSilent()
     {
         var accounts = await _client.GetAccountsAsync();
@@ -128,12 +115,13 @@ public partial class MainWindow
                 }
                 catch (MsalException ex)
                 {
+
                     System.Diagnostics.Debug.WriteLine($"Error signing-out user: {ex.Message}");
                 }
         }
         catch (Exception)
         {
-            // Ignore 
+            // Ignore
         }
         return false;
     }

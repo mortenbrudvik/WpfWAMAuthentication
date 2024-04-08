@@ -1,11 +1,13 @@
-﻿using Microsoft.Identity.Client;
-using Microsoft.Identity.Client.Broker;
+﻿using System.Diagnostics;
+using System.Threading.Tasks;
+using Microsoft.Identity.Client;
+using Microsoft.Identity.Client.Extensions.Msal;
 
 namespace WpfWAM.UI;
 
 public static class ClientApp
 {
-    // Below are the clientId (Application Id) of your app registration and the tenant information. 
+    // Below are the clientId (Application Id) of your app registration and the tenant information.
     // You have to replace:
     // - the content of ClientID with the Application Id for your app registration
     // - The content of Tenant by the information about the accounts allowed to sign-in in your application:
@@ -15,17 +17,37 @@ public static class ClientApp
     //   - for Microsoft Personal account, use consumers
     private static string Instance = "https://login.microsoftonline.com/";
 
-    public static IPublicClientApplication Create(string clientId, string tenantId, bool useWam = true)
+    public static IPublicClientApplication Create(string clientId, string tenantId)
     {
-        var builder = PublicClientApplicationBuilder.Create(clientId)
-            .WithAuthority($"{Instance}{tenantId}")
-            .WithDefaultRedirectUri();
+        var brokerOptions = new BrokerOptions(BrokerOptions.OperatingSystems.Windows);
 
-        //Use of Broker Requires redirect URI "ms-appx-web://microsoft.aad.brokerplugin/{client_id}" in app registration
-        if (useWam) builder.WithBrokerPreview();
-        var clientApp = builder.Build();
-        TokenCacheHelper.EnableSerialization(clientApp.UserTokenCache);
+        var clientApp = PublicClientApplicationBuilder.Create(clientId)
+            .WithAuthority($"{Instance}{tenantId}")
+            .WithDefaultRedirectUri()
+            .WithBroker(brokerOptions)
+            .Build();
+
+        var cacheHelper = CreateCacheHelperAsync().GetAwaiter().GetResult();
+
+        // Let the cache helper handle MSAL's cache, otherwise the user will be prompted to sign-in every time.
+        cacheHelper.RegisterCache(clientApp.UserTokenCache);
 
         return clientApp;
+    }
+
+    private static async Task<MsalCacheHelper> CreateCacheHelperAsync()
+    {
+        // Since this is a WPF application, only Windows storage is configured
+        var storageProperties = new StorageCreationPropertiesBuilder(
+                System.Reflection.Assembly.GetExecutingAssembly().GetName().Name + ".msalcache.bin",
+                MsalCacheHelper.UserRootDirectory)
+            .Build();
+
+        var cacheHelper = await MsalCacheHelper.CreateAsync(
+                storageProperties,
+                new TraceSource("MSAL.CacheTrace"))
+            .ConfigureAwait(false);
+
+        return cacheHelper;
     }
 }
